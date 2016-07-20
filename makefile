@@ -17,6 +17,7 @@
 URL           = https://github.com/zenoss/redis-mon
 FULL_NAME     = $(shell basename $(URL))
 VERSION      := $(shell cat ./VERSION)
+ARTIFACT_NAME := $(FULL_NAME)-$(VERSION).tgz
 DATE         := $(shell date -u)
 GIT_COMMIT   ?= $(shell ./hack/gitstatus.sh)
 GIT_BRANCH   ?= $(shell git rev-parse --abbrev-ref HEAD)
@@ -39,6 +40,11 @@ FULL_PATH     = $(shell echo $(URL) | sed 's|https:/||')
 DOCKER_WDIR  := /go/src$(FULL_PATH)
 
 
+.PHONY: clean build $(FULL_NAME)-build
+
+# the default build target should compile the application and create the tar.gz artifact
+build: docker-tgz
+
 ## generic workhorse targets
 $(FULL_NAME): VERSION *.go hack/* makefile $(GODEPS_FILES)
 	godep go build ${LDFLAGS}
@@ -54,7 +60,6 @@ docker-rpm: $(FULL_NAME)-build
 	docker run --rm -v `pwd`:$(DOCKER_WDIR) -w $(DOCKER_WDIR) -e DUID=$(DUID) -e DGID=$(DGID) zenoss/$(FULL_NAME)-build:$(VERSION) make rpm
 
 # actual work
-.PHONY: $(FULL_NAME)-build
 $(FULL_NAME)-build:
 	docker build -t zenoss/$(FULL_NAME)-build:$(VERSION) hack
 
@@ -64,9 +69,9 @@ stage_pkg: $(FULL_NAME)
 	cp -v $(FULL_NAME) $(PKGROOT)/usr/bin
 
 tgz: stage_pkg
-	tar cvfz /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz -C $(PKGROOT)/usr .
-	chown $(DUID):$(DGID) /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz
-	mv /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz .
+	tar cvfz /tmp/$(ARTIFACT_NAME) -C $(PKGROOT)/usr .
+	chown $(DUID):$(DGID) /tmp/$(ARTIFACT_NAME)
+	mv /tmp/$(ARTIFACT_NAME) .
 
 deb: stage_pkg
 	fpm \
@@ -109,7 +114,7 @@ rpm: stage_pkg
 	cp -p /tmp/*.rpm .
 
 clean:
-	go clean
+	rm -f $(FULL_NAME)
 	rm -f *.deb
 	rm -f *.rpm
 	rm -f *.tgz
