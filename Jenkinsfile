@@ -7,7 +7,7 @@ node {
   }
 
   stage('Build') {
-    docker.image('zenoss/build-tools:0.0.10').inside() { 
+    docker.image('zenoss/build-tools:0.0.10').inside('-u root') { 
       sh '''
         go get github.com/tools/godep
         $GOPATH/bin/godep go build -o redis-mon *.go
